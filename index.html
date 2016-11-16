@@ -4,9 +4,9 @@
 	<meta charset="UTF-8">
 	<title>CustomAd</title>
     <script>
-        
+
         var params = function (param) {
-            // This function is anonymous, is executed immediately and 
+            // This function is anonymous, is executed immediately and
             // the return value is assigned to QueryString!
             var query_string = {};
             var query = window.location.search.substring(1);
@@ -24,16 +24,16 @@
             } else {
             query_string[pair[0]].push(pair[1]);
             }
-            } 
+            }
             return query_string;
         } ();
-        
+
         var getParam = function (p) {
-            
+
             if (typeof params[p] != 'undefined') {
-                
+
                 try {
-                    return JSON.parse(decodeURIComponent(params[p]));    
+                    return JSON.parse(decodeURIComponent(params[p]));
                 } catch (e) {
                     return decodeURIComponent(params[p]);
                 }
@@ -50,8 +50,10 @@
 </head>
 <body>
     <div id="rma-widget">
-   
+
     </div>
 </body>
+<!-- <script src="http://cdn.rawgit.com/hammerjs/touchemulator/master/touch-emulator.js"></script> -->
+<!-- <script>TouchEmulator();</script> -->
 	<script src="js/main.js"></script>
 </html>

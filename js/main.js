@@ -1,4 +1,174 @@
 /*
+*
+* ytComponent - version 1
+* Copyright (c) 2015, Ninjoe
+* Dual licensed under the MIT or GPL Version 2 licenses.
+* https://en.wikipedia.org/wiki/MIT_License
+* https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html
+*
+*/
+var ytComponent = function (options) {
+
+    this.player;
+    this.replay = false;
+    this.container = options.container;
+    this.width = options.width;
+    this.height = options.height;
+    this.videoId = options.videoId;
+
+    this.tracker = options.tracker || function () {};
+    this.autoplay = options.autoplay || false;
+
+    this.realTime;
+    this.playTimeDone = [];
+
+    this.loadAPI()
+};
+
+/*
+* Javascript Currying
+* For more info - http://www.dustindiaz.com/javascript-curry/
+*/
+ytComponent.prototype.curry = function(fn, scope /*, arguments */) {
+    scope = scope || window;
+    var actualArgs = arguments;
+
+    return function() {
+        var args = [];
+        for(var j = 0; j < arguments.length; j++) {
+            args.push(arguments[j]);
+        }
+
+        for(var i = 2; i < actualArgs.length; i++) {
+            args.push(actualArgs[i]);
+        }
+
+        return fn.apply(scope, args);
+    };
+};
+
+ytComponent.prototype.loadAPI = function () {
+    var tag = document.createElement('script');
+
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+
+};
+
+ytComponent.prototype.loadVideo = function () {
+    this.player = new YT.Player(this.container, {
+        width: this.width,
+        height: this.height,
+        videoId: this.videoId,
+        events: {
+            'onReady': this.curry(this.onPlayerReady, this),
+            'onStateChange': this.curry(this.onPlayerStateChange, this)
+        }
+    });
+};
+
+/* On Youtube Player Ready*/
+ytComponent.prototype.onPlayerReady = function (event, test) {
+    /* autoplay */
+    if (this.autoplay) {
+        event.target.playVideo();
+    }
+};
+/* Youtube Player State Change Events */
+ytComponent.prototype.onPlayerStateChange = function (event) {
+    /*
+    -1 – unstarted
+    0 – ended
+    1 – playing
+    2 – paused
+    3 – buffering
+    5 – video cued
+    */
+
+    if (event.data == 0) {
+        /* next play is replay */
+        this.replay = true;
+
+        /* tracking */
+        this.tracker.tracker('E', 'end');
+
+        /* skip tracking */
+        if (this.playTimeDone.indexOf(25) == -1 || this.playTimeDone.indexOf(50) == -1 || this.playTimeDone.indexOf(75) == -1) {
+            this.tracker.tracker('E', 'skip');
+
+            if (this.playTimeDone.indexOf(25) == -1) {
+                this.tracker.tracker('E', 'play_25');
+            }
+            if (this.playTimeDone.indexOf(50) == -1) {
+                this.tracker.tracker('E', 'play_50');
+            }
+            if (this.playTimeDone.indexOf(75) == -1) {
+                this.tracker.tracker('E', 'play_75');
+            }
+        }
+
+    } else if (event.data == 1) {
+
+        /* tracking */
+        if (!this.replay) {
+            /* Start RealTime */
+            this.realTime = setInterval(this.curry(this.videoPlayLength, this), 100);
+
+            this.tracker.tracker('E', 'playing');
+        } else {
+            this.tracker.tracker('E', 'replay');
+        }
+    } else if (event.data == 2) {
+
+        /* Clear RealTime */
+        clearInterval(this.realTime);
+        /* tracking */
+        this.tracker.tracker('E', 'paused');
+    }
+};
+
+/*
+* Video play length algorithm
+*
+*/
+ytComponent.prototype.videoPlayLength = function () {
+    /* Stop if its replay */
+    if (this.replay) {
+        clearInterval(this.realTime);
+        return;
+    }
+
+    var duration = this.player.getDuration();
+    var current = this.player.getCurrentTime();
+
+    /* Calc percentage in quater of 0, 25, 50, 75, 100 */
+    var perc = (Math.round(current / duration * 4) / 4).toFixed(2) * 100;
+
+    if (perc == 25 && this.playTimeDone.indexOf(perc) == -1) {
+        /* tracking */
+        this.tracker.tracker('E', 'play_25');
+    } else if (perc == 50 && this.playTimeDone.indexOf(perc) == -1) {
+        /* tracking */
+        this.tracker.tracker('E', 'play_50');
+    } else if (perc == 75 && this.playTimeDone.indexOf(perc) == -1) {
+        /* tracking */
+        this.tracker.tracker('E', 'play_75');
+    }
+    this.playTimeDone.push(perc);
+
+    /* Stop if completed */
+    var complete = this.player.getPlayerState() == 0;
+    if (complete) {
+        clearInterval(this.realTime);
+    }
+
+};
+
+
+
+/*
  *
  * mads - version 2.00.01
  * Copyright (c) 2015, Ninjoe
@@ -142,6 +312,7 @@ mads.prototype.linkOpener = function (url) {
 
 /* tracker */
 mads.prototype.tracker = function (tt, type, name, value) {
+  console.log(type, tt)
 
   /*
    * name is used to make sure that particular tracker is tracked for only once
@@ -224,18 +395,48 @@ mads.prototype.loadCss = function (href) {
 var ComparisonComponent = (function () {
   var left = document.createElement('div');
   left.id = 'left';
-  left.style.left = '0px'
   var right = document.createElement('div');
   right.id = 'right';
-  right.style.left = '0px'
+  var thumb = document.createElement('div');
+  thumb.id = 'thumb';
+  var next = document.createElement('div');
+  next.id = 'next'
+  var video = document.createElement('div')
+  video.id = 'video'
+  var last = document.createElement('div')
+  last.id ='last'
+  last.style.display = 'none'
+  last.innerHTML = '<img src="img/last.png" />'
+  var learnmore = document.createElement('div')
+  learnmore.id = 'learnmore'
+  learnmore.innerHTML = '<img src="img/learnmore-icn.png" />'
+  last.appendChild(learnmore)
+
+  var twittercon = document.createElement('div')
+  twittercon.id = 'twittercon'
+  twittercon.innerHTML = '<img src="img/twitter-icn.png" />'
+  last.appendChild(twittercon)
+
+  var fbcon = document.createElement('div')
+  fbcon.id = 'fbcon'
+  fbcon.innerHTML = '<img src="img/fb-icn.png" />'
+  last.appendChild(fbcon)
 
   left.innerHTML = '<img src="img/left.png" />'
   right.innerHTML = '<img src="img/right.png" />'
+  next.innerHTML = '<img src="img/next-icn.png" />'
+  video.innerHTML = '<iframe id="video-yt" width="249" height="187" src="https://www.youtube.com/embed/_xwPX1lAlxs?rel=0&amp;showinfo=0&amp;enablejsapi=1" frameborder="0" allowfullscreen></iframe>'
+  right.appendChild(video)
+  right.appendChild(next)
+  thumb.innerHTML = '<img src="img/slider-icn.png" />'
+
 
   function ComparisonComponent() {
     this.elements = {
       'right': right,
-      'left': left
+      'left': left,
+      'thumb': thumb,
+      'last': last
     }
     this.template = document.createElement('div');
     for (var el in this.elements) {
@@ -243,26 +444,173 @@ var ComparisonComponent = (function () {
     }
     this.template.id = 'ComparisonComponent'
     this.placement = 'default'
+    this.style = '#ComparisonComponent { position: absolute; left: 0; top: 0; } ' +
+      '#ComparisonComponent > * { position: absolute; overflow: hidden; }' +
+      '#thumb { left: 0px; top: 186px; width: 320px; height: 187px; }' +
+      '#thumb img { position: absolute; top: 75px; pointer-events: none; }' +
+      '#next { position: absolute; bottom: 10px; right: 29px; }' +
+      '#video { position: absolute; left: 34px; top: 186px; width: 249px; height: 187px; overflow: hidden;}' +
+      '#learnmore {position: absolute; bottom: 22px; right: 18px;}' +
+      '#twittercon { position: absolute; left: 115px; bottom: 22px;}' +
+      '#fbcon { position: absolute; left: 68px; bottom: 22px; }'
   }
 
-  ComparisonComponent.prototype.style = function () {
-    return '#ComparisonComponent { position: absolute; left: 0; top: 0; }' +
-      '#ComparisonComponent > * { position: absolute; overflow: hidden; }';
-  }
-  ComparisonComponent.prototype.events = function (tpl) {
+  ComparisonComponent.prototype.events = function (tpl, path, b) {
     var w = 320
-    var split = Math.round(w/2)
+    var split = Math.round(w / 2)
     var right = tpl.querySelector('#left')
+    var left = tpl.querySelector('#right')
+    var thumb = tpl.querySelector('#thumb')
+    var next = tpl.querySelector('#next')
+    var last = tpl.querySelector('#last')
+    var learnmore = tpl.querySelector('#learnmore')
+    var fbcon = tpl.querySelector('#fbcon')
+    var twittercon = tpl.querySelector('#twittercon')
+
+
+    learnmore.addEventListener('click', function() {
+      b.tracker('E', 'learnmore')
+      b.linkOpener('http://www.samsung.com/id/tablets/galaxy-tab-s2-9-7-t815/')
+    })
+
+    fbcon.addEventListener('click', function() {
+      b.tracker('E', 'fb')
+      b.linkOpener('https://www.facebook.com/SamsungIndonesia')
+    })
+
+    twittercon.addEventListener('click', function () {
+      b.tracker('E', 'twitter')
+      b.linkOpener('https://twitter.com/samsung_id')
+    })
+
     right.style.width = split + 'px'
-    this.template.addEventListener('mousemove', function(e) {
-      var rectRight = right.getBound  ingClientRect()
+    thumb.childNodes[0].style.left = (split - (117 / 2)) + 'px'
+
+    thumb.childNodes[0].style.opacity = 1;
+
+    function clamp(num, min, max) {
+      return num <= min ? min : num >= max ? max : num;
+    }
+
+    //requestAnimationFrame polyfill | Milos Djakonovic ( @Miloshio ) | MIT | https://github.com/milosdjakonovic/requestAnimationFrame-polyfill
+    !function(a){for(var b=1e3/60,c=[],d=!1,e=!1,f=[],g=function(a){for(var b=0;b<f.length;b++)if(f[b]===a)return f.splice(b,1),!0},h=function(){d=!1;var b=c;c=[];for(var f=0;f<b.length;f++){if(e===!0&&g(b[f]))return void(e=!1);b[f].apply(a,[(new Date).getTime()])}},i=function(e){return c.push(e),d===!1&&(a.setTimeout(h,b),d=!0),e},j=function(a){f.push(a),e=!0},k=["ms","moz","webkit","o"],l=0;l<k.length&&!a.requestAnimationFrame;++l)a.requestAnimationFrame=a[k[l]+"RequestAnimationFrame"],a.cancelAnimationFrame=a[k[l]+"CancelAnimationFrame"]||a[k[l]+"CancelRequestAnimationFrame"];a.requestAnimationFrame||(a.requestAnimationFrame=i),a.cancelAnimationFrame||(a.cancelAnimationFrame=j)}(window);
+
+    function fadeOut(el, flag) {
+      el.style.opacity = el.style.opacity || 1;
+
+      (function fade() {
+        if ((el.style.opacity -= .1) < 0.3) {
+          if (flag)
+            el.style.display = "none";
+        } else {
+          requestAnimationFrame(fade);
+        }
+      })();
+    }
+
+    // fade in
+
+    function fadeIn(el, display) {
+      el.style.opacity = el.style.opacity || 0;
+
+      (function fade() {
+        var val = parseFloat(el.style.opacity);
+        if (!((val += .1) > 1)) {
+          el.style.opacity = val;
+          requestAnimationFrame(fade);
+        }
+      })();
+    }
+
+    next.addEventListener('click', function() {
+      if (right.style.display === 'none') {
+        fadeOut(left, true)
+        last.style.opacity = 0
+        last.style.display = 'block'
+        fadeIn(last)
+        b.tracker('E', 'next')
+      }
+      else {
+        fadeOut(right, true)
+        fadeOut(thumb, true)
+      }
+    })
+
+    var thumbdown = false;
+
+    thumb.addEventListener('mousedown', function () {
+      thumbdown = true
+      thumb.childNodes[0].src = path + 'img/thumb.png'
+      fadeIn(thumb.childNodes[0])
+      b.tracker('E', 'slidestart')
+    })
+    thumb.addEventListener('touchstart', function () {
+      thumbdown = true
+      thumb.childNodes[0].src = path + 'img/thumb.png'
+      fadeIn(thumb.childNodes[0])
+      b.tracker('E', 'slidestart')
+    })
+
+    thumb.addEventListener('mouseup', function () {
+      thumbdown = false
+      fadeOut(thumb.childNodes[0])
+    })
+    thumb.addEventListener('touchend', function () {
+      thumbdown = false
+      fadeOut(thumb.childNodes[0])
+    })
+
+    var thumbmousemove = function (e) {
+      if (!thumbdown) return
+      var rectRight = right.getBoundingClientRect()
       var rightOffset = {
         top: rectRight.top + document.body.scrollTop,
         left: rectRight.left + document.body.scrollLeft
       }
       var offX = (e.offsetX || e.clientX - rightOffset.left)
       right.style.width = offX + 'px'
-    })
+      thumb.childNodes[0].style.left = clamp((offX - (43 / 2)), -20, 300) + 'px'
+      if (20 > offX) {
+        b.tracker('E', 'reveal')
+        fadeOut(right, true)
+        fadeOut(thumb, true)
+        thumb.style.display = 'none'
+        thumb.removeEventListener('mousemove', thumbmousemove)
+      }
+    }
+
+    var thumbtouchmove = function (e) {
+      if (!thumbdown) return
+      var rectRight = right.getBoundingClientRect()
+      var rightOffset = {
+        top: rectRight.top + document.body.scrollTop,
+        left: rectRight.left + document.body.scrollLeft
+      }
+      var rectThumb = thumb.getBoundingClientRect()
+      var thumbOffset = {
+        top: rectThumb.top + document.body.scrollTop,
+        left: rectThumb.left + document.body.scrollLeft
+      }
+      var touch = e.touches[0] || e.changedTouches[0];
+      var x = touch.pageX - thumbOffset.left
+      var y = touch.pageY - thumbOffset.top
+
+      var offX = (x || touch.clientX - rightOffset.left)
+      right.style.width = offX + 'px'
+      thumb.childNodes[0].style.left = clamp((offX - (43 / 2)), -20, 300) + 'px'
+      if (20 > offX) {
+        b.tracker('E', 'reveal')
+        fadeOut(right, true)
+        fadeOut(thumb, true)
+        thumb.style.display = 'none'
+        thumb.removeEventListener('touchmove', thumbtouchmove)
+      }
+    }
+
+    thumb.addEventListener('mousemove', thumbmousemove)
+
+    thumb.addEventListener('touchmove', thumbtouchmove)
+
   }
 
   return new ComparisonComponent;
@@ -276,6 +624,7 @@ var HTML5Ad = (function () {
   })
 
   var HTML5Ad = function (options) {
+    this.components = []
     this.bootstrap = bootstrap;
     if (options && options.components) {
       this.components = options.components
@@ -303,13 +652,14 @@ var HTML5Ad = (function () {
     }
 
     head.appendChild(style);
-    console.log('inserted style');
   }
 
   HTML5Ad.prototype.events = function () {
+
     for (var i in this.components) {
-      this.components[i].events(bootstrap.contentTag);
+      this.components[i].events(bootstrap.contentTag, bootstrap.path, bootstrap);
     }
+
   }
 
   HTML5Ad.prototype.render = function () {
@@ -317,18 +667,25 @@ var HTML5Ad = (function () {
     var adContainer = document.createElement('div');
     adContainer.id = "adContainer";
     for (var i in this.components) {
-      this.style(this.components[i].style());
+      this.style(this.components[i].style);
       this.components[i]["template"].innerHTML = this.components[i]["template"].innerHTML.replace(/src\=\"/g, 'src="' + bootstrap.path)
       adContainer.appendChild(this.components[i]["template"]);
     }
     bootstrap.contentTag.innerHTML = '';
     bootstrap.contentTag.appendChild(adContainer);
     this.events();
-    console.log('rendered');
+
+    window.np = new ytComponent({
+      container: 'video-yt',
+      videoId: '_xwPX1lAlxs',
+      tracker: bootstrap
+    })
+
   }
 
   return HTML5Ad;
 })();
+
 
 var samsungAd = new HTML5Ad({
   components: [
@@ -336,4 +693,6 @@ var samsungAd = new HTML5Ad({
   ]
 });
 
-console.log(samsungAd);
+function onYouTubeIframeAPIReady() {
+  np.loadVideo()
+}
