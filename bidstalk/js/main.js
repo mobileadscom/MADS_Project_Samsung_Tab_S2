@@ -1,168 +1,168 @@
 /*
-*
-* ytComponent - version 1
-* Copyright (c) 2015, Ninjoe
-* Dual licensed under the MIT or GPL Version 2 licenses.
-* https://en.wikipedia.org/wiki/MIT_License
-* https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html
-*
-*/
+ *
+ * ytComponent - version 1
+ * Copyright (c) 2015, Ninjoe
+ * Dual licensed under the MIT or GPL Version 2 licenses.
+ * https://en.wikipedia.org/wiki/MIT_License
+ * https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html
+ *
+ */
 var ytComponent = function (options) {
 
-    this.player;
-    this.replay = false;
-    this.container = options.container;
-    this.width = options.width;
-    this.height = options.height;
-    this.videoId = options.videoId;
+  this.player;
+  this.replay = false;
+  this.container = options.container;
+  this.width = options.width;
+  this.height = options.height;
+  this.videoId = options.videoId;
 
-    this.tracker = options.tracker || function () {};
-    this.autoplay = options.autoplay || false;
+  this.tracker = options.tracker || function () {};
+  this.autoplay = options.autoplay || false;
 
-    this.realTime;
-    this.playTimeDone = [];
+  this.realTime;
+  this.playTimeDone = [];
 
-    this.loadAPI()
+  this.loadAPI()
 };
 
 /*
-* Javascript Currying
-* For more info - http://www.dustindiaz.com/javascript-curry/
-*/
-ytComponent.prototype.curry = function(fn, scope /*, arguments */) {
-    scope = scope || window;
-    var actualArgs = arguments;
+ * Javascript Currying
+ * For more info - http://www.dustindiaz.com/javascript-curry/
+ */
+ytComponent.prototype.curry = function (fn, scope /*, arguments */ ) {
+  scope = scope || window;
+  var actualArgs = arguments;
 
-    return function() {
-        var args = [];
-        for(var j = 0; j < arguments.length; j++) {
-            args.push(arguments[j]);
-        }
+  return function () {
+    var args = [];
+    for (var j = 0; j < arguments.length; j++) {
+      args.push(arguments[j]);
+    }
 
-        for(var i = 2; i < actualArgs.length; i++) {
-            args.push(actualArgs[i]);
-        }
+    for (var i = 2; i < actualArgs.length; i++) {
+      args.push(actualArgs[i]);
+    }
 
-        return fn.apply(scope, args);
-    };
+    return fn.apply(scope, args);
+  };
 };
 
 ytComponent.prototype.loadAPI = function () {
-    var tag = document.createElement('script');
+  var tag = document.createElement('script');
 
-    tag.src = "https://www.youtube.com/iframe_api";
-    var firstScriptTag = document.getElementsByTagName('script')[0];
-    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+  tag.src = "https://www.youtube.com/iframe_api";
+  var firstScriptTag = document.getElementsByTagName('script')[0];
+  firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
 
 };
 
 ytComponent.prototype.loadVideo = function () {
-    this.player = new YT.Player(this.container, {
-        width: this.width,
-        height: this.height,
-        videoId: this.videoId,
-        events: {
-            'onReady': this.curry(this.onPlayerReady, this),
-            'onStateChange': this.curry(this.onPlayerStateChange, this)
-        }
-    });
+  this.player = new YT.Player(this.container, {
+    width: this.width,
+    height: this.height,
+    videoId: this.videoId,
+    events: {
+      'onReady': this.curry(this.onPlayerReady, this),
+      'onStateChange': this.curry(this.onPlayerStateChange, this)
+    }
+  });
 };
 
 /* On Youtube Player Ready*/
 ytComponent.prototype.onPlayerReady = function (event, test) {
-    /* autoplay */
-    if (this.autoplay) {
-        event.target.playVideo();
-    }
+  /* autoplay */
+  if (this.autoplay) {
+    event.target.playVideo();
+  }
 };
 /* Youtube Player State Change Events */
 ytComponent.prototype.onPlayerStateChange = function (event) {
-    /*
-    -1 – unstarted
-    0 – ended
-    1 – playing
-    2 – paused
-    3 – buffering
-    5 – video cued
-    */
+  /*
+  -1 – unstarted
+  0 – ended
+  1 – playing
+  2 – paused
+  3 – buffering
+  5 – video cued
+  */
 
-    if (event.data == 0) {
-        /* next play is replay */
-        this.replay = true;
+  if (event.data == 0) {
+    /* next play is replay */
+    this.replay = true;
 
-        /* tracking */
-        this.tracker.tracker('E', 'end');
+    /* tracking */
+    this.tracker.tracker('E', 'end');
 
-        /* skip tracking */
-        if (this.playTimeDone.indexOf(25) == -1 || this.playTimeDone.indexOf(50) == -1 || this.playTimeDone.indexOf(75) == -1) {
-            this.tracker.tracker('E', 'skip');
+    /* skip tracking */
+    if (this.playTimeDone.indexOf(25) == -1 || this.playTimeDone.indexOf(50) == -1 || this.playTimeDone.indexOf(75) == -1) {
+      this.tracker.tracker('E', 'skip');
 
-            if (this.playTimeDone.indexOf(25) == -1) {
-                this.tracker.tracker('E', 'play_25');
-            }
-            if (this.playTimeDone.indexOf(50) == -1) {
-                this.tracker.tracker('E', 'play_50');
-            }
-            if (this.playTimeDone.indexOf(75) == -1) {
-                this.tracker.tracker('E', 'play_75');
-            }
-        }
-
-    } else if (event.data == 1) {
-
-        /* tracking */
-        if (!this.replay) {
-            /* Start RealTime */
-            this.realTime = setInterval(this.curry(this.videoPlayLength, this), 100);
-
-            this.tracker.tracker('E', 'playing');
-        } else {
-            this.tracker.tracker('E', 'replay');
-        }
-    } else if (event.data == 2) {
-
-        /* Clear RealTime */
-        clearInterval(this.realTime);
-        /* tracking */
-        this.tracker.tracker('E', 'paused');
+      if (this.playTimeDone.indexOf(25) == -1) {
+        this.tracker.tracker('E', 'play_25');
+      }
+      if (this.playTimeDone.indexOf(50) == -1) {
+        this.tracker.tracker('E', 'play_50');
+      }
+      if (this.playTimeDone.indexOf(75) == -1) {
+        this.tracker.tracker('E', 'play_75');
+      }
     }
+
+  } else if (event.data == 1) {
+
+    /* tracking */
+    if (!this.replay) {
+      /* Start RealTime */
+      this.realTime = setInterval(this.curry(this.videoPlayLength, this), 100);
+
+      this.tracker.tracker('E', 'playing');
+    } else {
+      this.tracker.tracker('E', 'replay');
+    }
+  } else if (event.data == 2) {
+
+    /* Clear RealTime */
+    clearInterval(this.realTime);
+    /* tracking */
+    this.tracker.tracker('E', 'paused');
+  }
 };
 
 /*
-* Video play length algorithm
-*
-*/
+ * Video play length algorithm
+ *
+ */
 ytComponent.prototype.videoPlayLength = function () {
-    /* Stop if its replay */
-    if (this.replay) {
-        clearInterval(this.realTime);
-        return;
-    }
+  /* Stop if its replay */
+  if (this.replay) {
+    clearInterval(this.realTime);
+    return;
+  }
 
-    var duration = this.player.getDuration();
-    var current = this.player.getCurrentTime();
+  var duration = this.player.getDuration();
+  var current = this.player.getCurrentTime();
 
-    /* Calc percentage in quater of 0, 25, 50, 75, 100 */
-    var perc = (Math.round(current / duration * 4) / 4).toFixed(2) * 100;
+  /* Calc percentage in quater of 0, 25, 50, 75, 100 */
+  var perc = (Math.round(current / duration * 4) / 4).toFixed(2) * 100;
 
-    if (perc == 25 && this.playTimeDone.indexOf(perc) == -1) {
-        /* tracking */
-        this.tracker.tracker('E', 'play_25');
-    } else if (perc == 50 && this.playTimeDone.indexOf(perc) == -1) {
-        /* tracking */
-        this.tracker.tracker('E', 'play_50');
-    } else if (perc == 75 && this.playTimeDone.indexOf(perc) == -1) {
-        /* tracking */
-        this.tracker.tracker('E', 'play_75');
-    }
-    this.playTimeDone.push(perc);
+  if (perc == 25 && this.playTimeDone.indexOf(perc) == -1) {
+    /* tracking */
+    this.tracker.tracker('E', 'play_25');
+  } else if (perc == 50 && this.playTimeDone.indexOf(perc) == -1) {
+    /* tracking */
+    this.tracker.tracker('E', 'play_50');
+  } else if (perc == 75 && this.playTimeDone.indexOf(perc) == -1) {
+    /* tracking */
+    this.tracker.tracker('E', 'play_75');
+  }
+  this.playTimeDone.push(perc);
 
-    /* Stop if completed */
-    var complete = this.player.getPlayerState() == 0;
-    if (complete) {
-        clearInterval(this.realTime);
-    }
+  /* Stop if completed */
+  var complete = this.player.getPlayerState() == 0;
+  if (complete) {
+    clearInterval(this.realTime);
+  }
 
 };
 
@@ -302,6 +302,10 @@ mads.prototype.linkOpener = function (url) {
 
   if (typeof url != "undefined" && url != "") {
 
+    if (typeof this.ct != 'undefined' && this.ct != '') {
+      url = this.ct + encodeURIComponent(url);
+    }
+
     if (typeof mraid !== 'undefined') {
       mraid.open(url);
     } else {
@@ -404,7 +408,7 @@ var ComparisonComponent = (function () {
   var video = document.createElement('div')
   video.id = 'video'
   var last = document.createElement('div')
-  last.id ='last'
+  last.id = 'last'
   last.style.display = 'none'
   last.innerHTML = '<img src="img/last.png" />'
   var learnmore = document.createElement('div')
@@ -468,19 +472,27 @@ var ComparisonComponent = (function () {
     var twittercon = tpl.querySelector('#twittercon')
 
 
-    learnmore.addEventListener('click', function() {
+    learnmore.addEventListener('click', function () {
       b.tracker('E', 'learnmore')
-      b.linkOpener('http://www.samsung.com/id/tablets/galaxy-tab-s2-9-7-t815/')
+      b.linkOpener('http://bs.serving-sys.com/BurstingPipe/adServer.bs?cn=tf&c=20&mc=click&pli=19607784&PluID=0&ord=[timestamp]')
     })
 
-    fbcon.addEventListener('click', function() {
+    fbcon.addEventListener('click', function () {
       b.tracker('E', 'fb')
-      b.linkOpener('https://www.facebook.com/SamsungIndonesia')
+      var text = encodeURIComponent("Super productivity everywhere with Samsung Galaxy Tab S2 #LiveSuper. More info https://goo.gl/LRQGys")
+      var fburl = encodeURIComponent('https://goo.gl/LRQGys')
+      var title = encodeURIComponent("Samsung Galaxy Tab S2 #LiveSuper")
+      var desc = encodeURIComponent("Super productivity everywhere with Samsung Galaxy Tab S2 #LiveSuper")
+      b.linkOpener('https://www.facebook.com/sharer/sharer.php?u='+fburl+'&quote=' + text + '&caption='+text+'&title='+title+'&description='+desc)
     })
 
     twittercon.addEventListener('click', function () {
       b.tracker('E', 'twitter')
-      b.linkOpener('https://twitter.com/samsung_id')
+      var text = encodeURIComponent("Super productivity everywhere with Samsung Galaxy Tab S2 #LiveSuper. More info")
+      var referrer = encodeURIComponent("http://www.samsung.com/id/galaxytabs2/?cid=ID_mobile_IMX_TabS2Product_20161117__MobileRMB_25-45MF__TabS2_MobileDevices")
+      var url = encodeURIComponent("https://goo.gl/LRQGys")
+      b.linkOpener('https://twitter.com/intent/tweet?text='+text+'&original_referer='+referrer+'&url='+url+'&tw_p=tweetbutton&via=samsung_id')
+      // b.linkOpener('https://twitter.com/samsung_id')
     })
 
     right.style.width = split + 'px'
@@ -493,7 +505,25 @@ var ComparisonComponent = (function () {
     }
 
     //requestAnimationFrame polyfill | Milos Djakonovic ( @Miloshio ) | MIT | https://github.com/milosdjakonovic/requestAnimationFrame-polyfill
-    !function(a){for(var b=1e3/60,c=[],d=!1,e=!1,f=[],g=function(a){for(var b=0;b<f.length;b++)if(f[b]===a)return f.splice(b,1),!0},h=function(){d=!1;var b=c;c=[];for(var f=0;f<b.length;f++){if(e===!0&&g(b[f]))return void(e=!1);b[f].apply(a,[(new Date).getTime()])}},i=function(e){return c.push(e),d===!1&&(a.setTimeout(h,b),d=!0),e},j=function(a){f.push(a),e=!0},k=["ms","moz","webkit","o"],l=0;l<k.length&&!a.requestAnimationFrame;++l)a.requestAnimationFrame=a[k[l]+"RequestAnimationFrame"],a.cancelAnimationFrame=a[k[l]+"CancelAnimationFrame"]||a[k[l]+"CancelRequestAnimationFrame"];a.requestAnimationFrame||(a.requestAnimationFrame=i),a.cancelAnimationFrame||(a.cancelAnimationFrame=j)}(window);
+    ! function (a) {
+      for (var b = 1e3 / 60, c = [], d = !1, e = !1, f = [], g = function (a) {
+          for (var b = 0; b < f.length; b++)
+            if (f[b] === a) return f.splice(b, 1), !0
+        }, h = function () {
+          d = !1;
+          var b = c;
+          c = [];
+          for (var f = 0; f < b.length; f++) {
+            if (e === !0 && g(b[f])) return void(e = !1);
+            b[f].apply(a, [(new Date).getTime()])
+          }
+        }, i = function (e) {
+          return c.push(e), d === !1 && (a.setTimeout(h, b), d = !0), e
+        }, j = function (a) {
+          f.push(a), e = !0
+        }, k = ["ms", "moz", "webkit", "o"], l = 0; l < k.length && !a.requestAnimationFrame; ++l) a.requestAnimationFrame = a[k[l] + "RequestAnimationFrame"], a.cancelAnimationFrame = a[k[l] + "CancelAnimationFrame"] || a[k[l] + "CancelRequestAnimationFrame"];
+      a.requestAnimationFrame || (a.requestAnimationFrame = i), a.cancelAnimationFrame || (a.cancelAnimationFrame = j)
+    }(window);
 
     function fadeOut(el, flag) {
       el.style.opacity = el.style.opacity || 1;
@@ -522,15 +552,14 @@ var ComparisonComponent = (function () {
       })();
     }
 
-    next.addEventListener('click', function() {
+    next.addEventListener('click', function () {
       if (right.style.display === 'none') {
         fadeOut(left, true)
         last.style.opacity = 0
         last.style.display = 'block'
         fadeIn(last)
         b.tracker('E', 'next')
-      }
-      else {
+      } else {
         fadeOut(right, true)
         fadeOut(thumb, true)
       }

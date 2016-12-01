@@ -10,6 +10,7 @@ var rma ={
 'secure':true,
 'cb':'{CACHEBUSTER}',
 'ct':'{CLICK_URL}',
+'trackImp':'http://bs.serving-sys.com/BurstingPipe/adServer.bs?cn=tf&c=19&mc=imp&pli=19607784&PluID=0&ord=[timestamp]&rtu=-1',
 'customize':{'custTracker':['https://www.cdn.serving1.net/a/analytic.htm?uid=0&isNew={{isNew}}&referredUrl={{referredUrl}}&rmaId={{rmaId}}&domainId=0&pageLoadId={{pageLoadId}}&userId={{userId}}&pubUserId=0&campaignId={{campaignId}}&browser={{browser}}&os={{os}}&domain={{domain}}&callback=trackSuccess&callback=trackSuccess&type={{rmatype}}&tt={{rmatt}}&value={{rmavalue}}']},
 'tags':{'dsp':'bidstalk','exchange':'{EXCHANGE_NAME}','inventory':'{APP_NAME}','uniqueId':'{DEVICE_PLATFORM_ID}'}
 };
